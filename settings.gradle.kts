@@ -86,7 +86,8 @@ gradle.rootProject {
 
 rootProject.name = "AndroidCodeStudio"
 
-include(
+include( 
+
   ":annotation:annotations",
   ":annotation:processors",
   ":annotation:processors-ksp",
@@ -150,3 +151,6 @@ include(
   ":xml:resources-api",
   ":xml:utils",
 )
+
+
+include(":lsp:clang")
