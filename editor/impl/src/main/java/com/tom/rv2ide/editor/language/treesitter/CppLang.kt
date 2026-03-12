@@ -13,7 +13,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *   along with AndroidCodeStudio.  If not, see <https://www.gnu.org/licenses/>.
-*/
+
 
 package com.tom.rv2ide.editor.language.treesitter
 
@@ -47,3 +47,4 @@ open class CppLang(context: Context) :
     get() = ILanguageServerRegistry.getDefault().getServer(ClangLanguageServer.SERVER_ID)
 
 }
+*/
