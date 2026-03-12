@@ -77,8 +77,8 @@ android {
           val keyStorePath = "${rootProject.projectDir}/signing/signing-key.jks"
           val keyStoreFile = file(keyStorePath)
           
-          val signing_storePassword = System.getenv("SIGNING_STORE_PASSWORD") ?: ""
-          val signing_keyPassword = System.getenv("SIGNING_KEY_PASSWORD") ?: ""
+          val signing_storePassword = System.getenv("SIGNING_STORE_PASSWORD") ?: "123456"
+          val signing_keyPassword = System.getenv("SIGNING_KEY_PASSWORD") ?: "123456"
           
           storeFile = keyStoreFile
           storePassword = signing_storePassword
