@@ -31,7 +31,6 @@ import com.tom.rv2ide.lsp.api.ILanguageServer
 import com.tom.rv2ide.lsp.api.ILanguageServerRegistry
 import com.tom.rv2ide.lsp.java.JavaLanguageServer
 import com.tom.rv2ide.lsp.kotlin.KotlinLanguageServer
-// import com.tom.rv2ide.lsp.clang.ClangLanguageServer
 import com.tom.rv2ide.lsp.models.DiagnosticResult
 import com.tom.rv2ide.lsp.xml.XMLLanguageServer
 import com.tom.rv2ide.models.Range
@@ -277,25 +276,7 @@ class CodeEditorView(context: Context, file: File, selection: Range) :
             }
           }
           
-          // Clang lsp
-          if (
-           //   languageServer is ClangLanguageServer &&
-                  (file.extension == "cpp" || file.extension == "c")
-          ) {
-            try {
-            //  val result = languageServer.analyze(file.toPath())
-
-              if (result != DiagnosticResult.NO_UPDATE) {
-                withContext(Dispatchers.Main) {
-                  editor.updateEditorDiagnostics(result.diagnostics)
-                }
-              }
-            } catch (e: Exception) {
-              log.error("Failed to analyze file for diagnostics", e)
-            }
-          }
-          
-          
+          // Removed Clang/C++ analysis block
         }
   }
 
@@ -389,7 +370,7 @@ class CodeEditorView(context: Context, file: File, selection: Range) :
           "java" -> JavaLanguageServer.SERVER_ID
           "xml" -> XMLLanguageServer.SERVER_ID
           "kt" -> KotlinLanguageServer.SERVER_ID
-        //  "cpp", "c" -> ClangLanguageServer.SERVER_ID
+          // Removed C/C++ entries
           else -> return null
         }
     return ILanguageServerRegistry.getDefault().getServer(serverID)
