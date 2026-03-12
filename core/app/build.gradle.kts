@@ -42,14 +42,12 @@ buildscript {
   }
 }
 
-tasks.configureEach {
-    if (name.contains("desugar", ignoreCase = true) && 
-        name != "desugarDebugFileDependencies" && 
-        name != "desugarReleaseFileDependencies") {
-        enabled = false
+tasks.register('ensureDesugarDir') {
+    doLast {
+        mkdir("$buildDir/intermediates/external_file_lib_dex_archives/dev/desugarDevFileDependencies")
     }
 }
-
+tasks.named('mergeExtDexDev').configure { dependsOn('ensureDesugarDir') }
 configurations.all {
   resolutionStrategy {
     force("com.google.guava:guava:32.1.3-android")
