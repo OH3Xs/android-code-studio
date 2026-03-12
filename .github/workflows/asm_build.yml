@@ -55,7 +55,7 @@ jobs:
         run: |
           echo "signing.storeFile=signing/signing-key.jks" >> local.properties
           echo "signing.storePassword=123456" >> local.properties  
-          echo "signing.keyAlias=android-ide" >> local.properties
+          echo "signing.keyAlias=androidCS" >> local.properties
           echo "signing.keyPassword=123456" >> local.properties
       - name: Debug signing setup
         run: |
