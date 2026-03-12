@@ -77,7 +77,6 @@ dependencies {
     implementation(projects.utilities.shared)
     implementation(projects.xml.lsp)
 
-// add 
-    implementation(project(":lsp:clang"))
+// add implementation(project(":lsp:clang"))
 
 }
