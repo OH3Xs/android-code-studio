@@ -31,7 +31,7 @@ import com.tom.rv2ide.lsp.api.ILanguageServer
 import com.tom.rv2ide.lsp.api.ILanguageServerRegistry
 import com.tom.rv2ide.lsp.java.JavaLanguageServer
 import com.tom.rv2ide.lsp.kotlin.KotlinLanguageServer
-import com.tom.rv2ide.lsp.clang.ClangLanguageServer
+// import com.tom.rv2ide.lsp.clang.ClangLanguageServer
 import com.tom.rv2ide.lsp.models.DiagnosticResult
 import com.tom.rv2ide.lsp.xml.XMLLanguageServer
 import com.tom.rv2ide.models.Range
@@ -279,7 +279,7 @@ class CodeEditorView(context: Context, file: File, selection: Range) :
           
           // Clang lsp
           if (
-              languageServer is ClangLanguageServer &&
+           //   languageServer is ClangLanguageServer &&
                   (file.extension == "cpp" || file.extension == "c")
           ) {
             try {
@@ -389,7 +389,7 @@ class CodeEditorView(context: Context, file: File, selection: Range) :
           "java" -> JavaLanguageServer.SERVER_ID
           "xml" -> XMLLanguageServer.SERVER_ID
           "kt" -> KotlinLanguageServer.SERVER_ID
-          "cpp", "c" -> ClangLanguageServer.SERVER_ID
+        //  "cpp", "c" -> ClangLanguageServer.SERVER_ID
           else -> return null
         }
     return ILanguageServerRegistry.getDefault().getServer(serverID)
