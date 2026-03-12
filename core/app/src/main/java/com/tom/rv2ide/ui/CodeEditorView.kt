@@ -283,7 +283,7 @@ class CodeEditorView(context: Context, file: File, selection: Range) :
                   (file.extension == "cpp" || file.extension == "c")
           ) {
             try {
-              val result = languageServer.analyze(file.toPath())
+            //  val result = languageServer.analyze(file.toPath())
 
               if (result != DiagnosticResult.NO_UPDATE) {
                 withContext(Dispatchers.Main) {
