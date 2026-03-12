@@ -42,10 +42,11 @@ buildscript {
   }
 }
 
-tasks.named("desugarDevFileDependencies").configure {
-    outputs.upToDateWhen { false }
+tasks.configureEach {
+    if (name.contains("desugar", ignoreCase = true) && name != "desugarDebugFileDependencies") {
+        enabled = false
+    }
 }
-
 configurations.all {
   resolutionStrategy {
     force("com.google.guava:guava:32.1.3-android")
