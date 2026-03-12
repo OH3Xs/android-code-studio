@@ -55,7 +55,7 @@ jobs:
         run: |
           echo "signing.storeFile=signing/signing-key.jks" >> local.properties
           echo "signing.storePassword=123456" >> local.properties  
-          echo "signing.keyAlias=androidCS" >> local.properties
+          echo "signing.keyAlias=AndroidCS" >> local.properties
           echo "signing.keyPassword=123456" >> local.properties
       - name: Debug signing setup
         run: |
@@ -69,10 +69,12 @@ jobs:
           ls -la core/app/signing/ || echo "core/app/signing directory not found"
       - name: Assemble Debug APK
              
-        run: |
+        # run: |
+            #  ./gradlew clean
+          #    ./gradlew :core:app:assembleDebug
+        run: | 
               ./gradlew clean
-              ./gradlew :core:app:assembleDebug
-        # run: ./gradlew :core:app:assembleRelease
+              ./gradlew :core:app:assembleRelease
       - name: List APK files (debug)
         run: ls -la core/app/build/outputs/apk/debug/
       - name: Upload arm64-v8a Release APK
