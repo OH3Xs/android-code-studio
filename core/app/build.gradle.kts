@@ -24,7 +24,7 @@ import java.util.Properties
 
 plugins {
   id("com.tom.rv2ide.core-app")
-  id("com.android.application") version "8.14.0" apply false
+  id("com.android.application")
   id("kotlin-android")
   id("kotlin-kapt")
   id("kotlinx-serialization")
