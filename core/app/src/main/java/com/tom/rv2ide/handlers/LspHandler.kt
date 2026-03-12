@@ -5,7 +5,7 @@ import android.content.Context
 import com.tom.rv2ide.lsp.api.ILanguageClient
 import com.tom.rv2ide.lsp.api.ILanguageServerRegistry
 import com.tom.rv2ide.lsp.java.JavaLanguageServer
-import com.tom.rv2ide.lsp.clang.ClangLanguageServer
+// import com.tom.rv2ide.lsp.clang.ClangLanguageServer
 import com.tom.rv2ide.lsp.kotlin.KotlinLanguageServer
 import com.tom.rv2ide.lsp.xml.XMLLanguageServer
 
@@ -16,7 +16,7 @@ object LspHandler {
     ILanguageServerRegistry.getDefault().apply {
       getServer(JavaLanguageServer.SERVER_ID) ?: register(JavaLanguageServer())
       getServer(KotlinLanguageServer.SERVER_ID) ?: register(KotlinLanguageServer(context))
-      getServer(ClangLanguageServer.SERVER_ID) ?: register(ClangLanguageServer(context))
+     // getServer(ClangLanguageServer.SERVER_ID) ?: register(ClangLanguageServer(context))
       getServer(XMLLanguageServer.SERVER_ID) ?: register(XMLLanguageServer())
     }
   }
