@@ -43,7 +43,9 @@ buildscript {
 }
 
 tasks.configureEach {
-    if (name.contains("desugar", ignoreCase = true) && name != "desugarDebugFileDependencies") {
+    if (name.contains("desugar", ignoreCase = true) && 
+        name != "desugarDebugFileDependencies" && 
+        name != "desugarReleaseFileDependencies") {
         enabled = false
     }
 }
