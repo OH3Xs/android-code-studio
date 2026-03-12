@@ -24,7 +24,7 @@ import java.util.Properties
 
 plugins {
   id("com.tom.rv2ide.core-app")
-  id("com.android.application")
+  id("com.android.application") version "8.14.0" apply false
   id("kotlin-android")
   id("kotlin-kapt")
   id("kotlinx-serialization")
@@ -42,12 +42,10 @@ buildscript {
   }
 }
 
-tasks.register('ensureDesugarDir') {
-    doLast {
-        mkdir("$buildDir/intermediates/external_file_lib_dex_archives/dev/desugarDevFileDependencies")
-    }
+tasks.named("desugarDevFileDependencies").configure {
+    outputs.upToDateWhen { false }
 }
-tasks.named('mergeExtDexDev').configure { dependsOn('ensureDesugarDir') }
+
 configurations.all {
   resolutionStrategy {
     force("com.google.guava:guava:32.1.3-android")
