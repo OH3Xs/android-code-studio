@@ -22,7 +22,7 @@ import android.view.View;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.tom.rv2ide.R;
-import com.androidgit.optiongit.databinding.FragmentNonEditableEditorBinding;
+import com.tom.rv2ide.databinding.FragmentNonEditableEditorBinding;
 import com.tom.rv2ide.editor.ui.IDEEditor;
 import com.tom.rv2ide.fragments.EmptyStateFragment;
 import com.tom.rv2ide.syntax.colorschemes.SchemeAndroidIDE;
@@ -95,4 +95,5 @@ public abstract class NonEditableEditorFragment extends
     getEmptyStateViewModel().isEmpty().setValue(true);
   }
 }
+
 
