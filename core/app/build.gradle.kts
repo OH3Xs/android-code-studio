@@ -17,7 +17,7 @@
 
 @file:Suppress("UnstableApiUsage")
 
-import com.tom.rv2idem.build.config.BuildConfig
+import com.tom.rv2ide.build.config.BuildConfig
 import com.tom.rv2ide.desugaring.utils.JavaIOReplacements.applyJavaIOReplacements
 import com.tom.rv2ide.plugins.AndroidIDEAssetsPlugin
 import java.util.Properties
@@ -62,10 +62,10 @@ configurations.all {
 }
 
 android {
-  namespace = BuildConfig.packageName
+  namespace =  BuildConfig.packageName
 
   defaultConfig {
-    applicationId = BuildConfig.packageName
+    applicationId =  BuildConfig.packageName
     vectorDrawables.useSupportLibrary = true
   }
   
