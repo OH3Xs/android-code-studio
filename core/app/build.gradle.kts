@@ -62,10 +62,10 @@ configurations.all {
 }
 
 android {
-  namespace = "com.androidgit.optiongit"
+  namespace = ("com.androidgit.optiongit")
 
   defaultConfig {
-    applicationId = "com.androidgit.optiongit"
+    applicationId = ("com.androidgit.optiongit")
     vectorDrawables.useSupportLibrary = true
   }
   
