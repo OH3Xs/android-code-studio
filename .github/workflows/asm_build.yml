@@ -70,7 +70,7 @@ jobs:
       - name: Assemble all APKs
              
         run: |
-             ./gradlew clean :core:app:assembleRelease
+             ./gradlew clean assemble 
             
        # ./gradlew clean assemble --rerun-tasks
       - name: List APK files (debug)
