@@ -73,6 +73,7 @@ jobs:
              ./gradlew clean assembleRelease
                  
        # ./gradlew clean assemble --rerun-tasks
+       # run: 
       - name: List APK files (Release)
         run: ls -la core/app/build/outputs/apk/release/
       - name: Upload arm64-v8a Release APK
