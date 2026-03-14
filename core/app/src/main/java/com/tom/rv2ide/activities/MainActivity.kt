@@ -46,6 +46,10 @@ import com.tom.rv2ide.viewmodel.MainViewModel.Companion.SCREEN_TEMPLATE_LIST
 import com.tom.rv2ide.setup.updater.lsp.KotlinLspUpdater
 import com.tom.rv2ide.setup.updater.lsp.data.LSPProperties
 import java.io.File
+// New Add @Developer Neeraj Engineer
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 
 class MainActivity : EdgeToEdgeIDEActivity() {
 
@@ -114,7 +118,18 @@ class MainActivity : EdgeToEdgeIDEActivity() {
 
   override fun onApplySystemBarInsets(insets: Insets) {
     binding.fragmentContainersParent.setPadding(insets.left, 0, insets.right, insets.bottom)
-  }
+  }  
+// @Developer Neeraj Engineer
+    private fun hideSystemUI() {
+    WindowCompat.setDecorFitsSystemWindows(window, false)
+    WindowInsetsControllerCompat(window, binding.root).let { controller ->
+        // Navigation bar aur Status bar dono hide karein
+        controller.hide(WindowInsetsCompat.Type.systemBars())
+        // Swipe karne par wapas aa jayein (Sticky Immersive Mode)
+        controller.systemBarsBehavior = 
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+    }
+}
 
   private fun onScreenChanged(screen: Int?) {
     val previous = viewModel.previousScreen
