@@ -28,8 +28,8 @@
 
     <ImageView
         android:id="@+id/christmas_hat"
-        android:layout_width="15dp"
-        android:layout_height="15dp"
+        android:layout_width="25dp"
+        android:layout_height="25dp"
         android:layout_alignTop="@id/toolbar_subtitle"
         android:layout_alignStart="@id/toolbar_subtitle"
         android:layout_marginTop="24dp"
