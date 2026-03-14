@@ -70,8 +70,8 @@ jobs:
       - name: Assemble all APKs
              
         run: |
-             ./gradlew clean assemble 
-            
+             ./gradlew clean assembleRelease
+                 
        # ./gradlew clean assemble --rerun-tasks
       - name: List APK files (Release)
         run: ls -la core/app/build/outputs/apk/release/
