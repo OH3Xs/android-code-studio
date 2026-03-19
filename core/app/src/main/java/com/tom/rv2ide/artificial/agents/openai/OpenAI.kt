@@ -59,12 +59,6 @@ class OpenAI : AIAgent {
     override val providerName = "OpenAI"
 
     companion object {
-        // Hardcoded list of valid OpenAI model names (as of early 2025)
-        private val VALID_MODELS = setOf(
-            "gpt-4o", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo",
-            "o1-preview", "o1-mini", "gpt-4o-mini", "gpt-4.5-preview"
-        )
-
         fun registerAgent() {
             AIAgentRegistry.register("openai", object : AIAgentRegistry.AgentFactory {
                 override fun create(context: Context): AIAgent {
@@ -94,11 +88,13 @@ class OpenAI : AIAgent {
             agents = Agents(context)
             var selectedModel = agents?.getAgent() ?: "gpt-4o"
 
-            // Ensure we're using a valid OpenAI model
-            if (!isValidModel(selectedModel)) {
-                log.warn("Model '{}' is not in the valid OpenAI model list. Falling back to 'gpt-4o'", selectedModel)
+            // Only validate that the model is not null/empty – do NOT restrict to a hardcoded list.
+            if (selectedModel.isNullOrBlank()) {
                 selectedModel = "gpt-4o"
                 agents?.setAgent(selectedModel)
+                agents?.setProvider("openai")
+            } else {
+                // Ensure the provider is set correctly
                 agents?.setProvider("openai")
             }
 
@@ -188,10 +184,6 @@ class OpenAI : AIAgent {
         return correctionKeywords.any { message.lowercase().contains(it) }
     }
 
-    private fun isValidModel(model: String): Boolean {
-        return model in VALID_MODELS
-    }
-
     override suspend fun generateCode(
         prompt: String,
         context: String?,
@@ -205,8 +197,10 @@ class OpenAI : AIAgent {
                         IllegalStateException("OpenAI service not initialized")
                     )
 
-                // Ensure model is valid before proceeding
-                validateModel()
+                // Ensure model is not null – if it is, fallback (shouldn't happen)
+                if (selectedModel.isNullOrBlank()) {
+                    selectedModel = "gpt-4o"
+                }
 
                 val fileContents = readRelevantFiles()
                 val needsCorrection = isUserRequestingCorrection(prompt)
@@ -285,19 +279,6 @@ class OpenAI : AIAgent {
                 Result.failure(e)
             }
         }
-
-    /**
-     * Ensures that the currently selected model is valid for OpenAI.
-     * If not, falls back to a default model and updates the stored selection.
-     */
-    private fun validateModel() {
-        if (!isValidModel(selectedModel)) {
-            log.warn("Model '{}' is not valid for OpenAI. Falling back to 'gpt-4o'", selectedModel)
-            selectedModel = "gpt-4o"
-            agents?.setAgent(selectedModel)
-            agents?.setProvider("openai")
-        }
-    }
 
     /**
      * Calls OpenAI's Responses API (v1/responses) which supports the latest models.
