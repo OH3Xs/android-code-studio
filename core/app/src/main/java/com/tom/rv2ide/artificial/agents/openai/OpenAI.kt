@@ -281,11 +281,31 @@ class OpenAI : AIAgent {
         }
 
     /**
-     * Calls OpenAI's Chat Completions API (v1/chat/completions) which supports all text models,
-     * including custom models like gpt-5.1-codex-max.
+     * Calls OpenAI API with automatic endpoint selection.
+     * First tries Chat Completions (v1/chat/completions). If the model is a base/completion model,
+     * the API returns a 404 with a specific error message; then it retries with Completions (v1/completions).
      */
     private fun callOpenAIAPI(apiKey: String, prompt: String): String {
-        log.debug("Starting API call to OpenAI (Chat Completions API) with model: {}", selectedModel)
+        log.debug("Starting API call to OpenAI with model: {}", selectedModel)
+
+        // First attempt with chat completions
+        try {
+            return attemptChatCompletions(apiKey, prompt)
+        } catch (e: Exception) {
+            // Check if it's the specific "not a chat model" error
+            if (e.message?.contains("not a chat model") == true || 
+                (e is Exception && e.message?.contains("v1/completions") == true)) {
+                log.debug("Model is not a chat model, retrying with completions endpoint")
+                return attemptCompletions(apiKey, prompt)
+            } else {
+                // Some other error, rethrow
+                throw e
+            }
+        }
+    }
+
+    private fun attemptChatCompletions(apiKey: String, prompt: String): String {
+        log.debug("Attempting Chat Completions API with model: {}", selectedModel)
 
         val url = URL("https://api.openai.com/v1/chat/completions")
         val connection = url.openConnection() as HttpURLConnection
@@ -313,22 +333,132 @@ class OpenAI : AIAgent {
             val requestBody = JSONObject()
             requestBody.put("model", selectedModel)
             requestBody.put("messages", messages)
-            requestBody.put("max_tokens", 4096) // Note: max_tokens, not max_output_tokens
-            // Optional: add temperature if needed, but some models may not support it
-            // requestBody.put("temperature", 0.7)
+            requestBody.put("max_tokens", 4096)
 
-            log.debug("Request body: {}", requestBody.toString())
+            log.debug("Chat request body: {}", requestBody.toString())
 
             connection.outputStream.use { os ->
                 os.write(requestBody.toString().toByteArray())
             }
 
             val responseCode = connection.responseCode
-            log.debug("Response code: {}", responseCode)
+            log.debug("Chat response code: {}", responseCode)
 
             if (responseCode != HttpURLConnection.HTTP_OK) {
                 val errorStream = connection.errorStream?.bufferedReader()?.readText() ?: "Unknown error"
-                log.error("Error response: {}", errorStream)
+                log.error("Chat error response: {}", errorStream)
+
+                // Parse error response
+                try {
+                    val errorJson = JSONObject(errorStream)
+                    val errorObj = errorJson.optJSONObject("error")
+                    val errorMessage = errorObj?.optString("message") ?: errorStream
+                    val errorType = errorObj?.optString("type") ?: ""
+                    val errorCode = errorObj?.optString("code") ?: ""
+
+                    log.error("Error type: {}, code: {}, message: {}", errorType, errorCode, errorMessage)
+
+                    // If it's the "not a chat model" error, throw a specific exception to trigger retry
+                    if (errorMessage.contains("not a chat model") || errorMessage.contains("v1/completions")) {
+                        throw Exception("Not a chat model - retry with completions")
+                    }
+
+                    // Identify other specific error types
+                    when {
+                        responseCode == 429 || errorType.contains("rate_limit") || errorCode.contains("rate_limit") ->
+                            throw com.tom.rv2ide.artificial.exceptions.RateLimitException("OpenAI rate limit exceeded: $errorMessage")
+                        errorType.contains("insufficient_quota") || errorMessage.contains("quota") || errorMessage.contains("billing") ->
+                            throw com.tom.rv2ide.artificial.exceptions.QuotaExceededException("OpenAI quota exceeded: $errorMessage")
+                        errorType.contains("invalid_api_key") || errorCode.contains("invalid_api_key") ->
+                            throw com.tom.rv2ide.artificial.exceptions.InvalidApiKeyException("Invalid OpenAI API key: $errorMessage")
+                        responseCode == 401 ->
+                            throw com.tom.rv2ide.artificial.exceptions.InvalidApiKeyException("OpenAI authentication failed: $errorMessage")
+                        else ->
+                            throw Exception("OpenAI API error ($responseCode) - Type: $errorType, Code: $errorCode, Message: $errorMessage")
+                    }
+                } catch (e: com.tom.rv2ide.artificial.exceptions.RateLimitException) {
+                    throw e
+                } catch (e: com.tom.rv2ide.artificial.exceptions.QuotaExceededException) {
+                    throw e
+                } catch (e: com.tom.rv2ide.artificial.exceptions.InvalidApiKeyException) {
+                    throw e
+                } catch (e: Exception) {
+                    // If we already wrapped it, rethrow; otherwise wrap
+                    if (e.message == "Not a chat model - retry with completions") {
+                        throw e
+                    }
+                    throw Exception("OpenAI API error ($responseCode): $errorStream")
+                }
+            }
+
+            val responseBody = connection.inputStream.bufferedReader().readText()
+            log.debug("Chat success response received, length: {}", responseBody.length)
+
+            val jsonResponse = JSONObject(responseBody)
+
+            val choices = jsonResponse.optJSONArray("choices")
+            if (choices != null && choices.length() > 0) {
+                val firstChoice = choices.getJSONObject(0)
+                val message = firstChoice.optJSONObject("message")
+                if (message != null) {
+                    val content = message.optString("content")
+                    if (content.isNotEmpty()) {
+                        return content
+                    }
+                }
+            }
+
+            log.error("Failed to extract content from chat response. Full response: {}", responseBody.take(500))
+            throw Exception("No response content from OpenAI Chat API. Response structure unexpected.")
+        } catch (e: java.net.SocketTimeoutException) {
+            log.error("Timeout exception", e)
+            throw Exception("OpenAI request timeout: ${e.message}")
+        } catch (e: java.net.UnknownHostException) {
+            log.error("Network exception", e)
+            throw Exception("Network error - cannot reach OpenAI: ${e.message}")
+        } catch (e: Exception) {
+            log.error("Chat attempt exception", e)
+            throw e
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private fun attemptCompletions(apiKey: String, prompt: String): String {
+        log.debug("Attempting Completions API with model: {}", selectedModel)
+
+        // Combine system instructions and user prompt for base models
+        val combinedPrompt = writingRules.useThis() + "\n\n" + prompt
+
+        val url = URL("https://api.openai.com/v1/completions")
+        val connection = url.openConnection() as HttpURLConnection
+
+        try {
+            connection.requestMethod = "POST"
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.setRequestProperty("Authorization", "Bearer $apiKey")
+            connection.doOutput = true
+            connection.connectTimeout = 30000
+            connection.readTimeout = 30000
+
+            val requestBody = JSONObject()
+            requestBody.put("model", selectedModel)
+            requestBody.put("prompt", combinedPrompt)
+            requestBody.put("max_tokens", 4096)
+            // Optionally set other parameters like temperature, stop sequences, etc.
+
+            log.debug("Completions request body: {}", requestBody.toString())
+
+            connection.outputStream.use { os ->
+                os.write(requestBody.toString().toByteArray())
+            }
+
+            val responseCode = connection.responseCode
+            log.debug("Completions response code: {}", responseCode)
+
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                val errorStream = connection.errorStream?.bufferedReader()?.readText() ?: "Unknown error"
+                log.error("Completions error response: {}", errorStream)
 
                 // Parse error response
                 try {
@@ -365,45 +495,21 @@ class OpenAI : AIAgent {
             }
 
             val responseBody = connection.inputStream.bufferedReader().readText()
-            log.debug("Success response received, length: {}", responseBody.length)
+            log.debug("Completions success response received, length: {}", responseBody.length)
 
             val jsonResponse = JSONObject(responseBody)
 
-            // Standard Chat Completion response format:
-            // {
-            //   "choices": [
-            //     {
-            //       "message": {
-            //         "role": "assistant",
-            //         "content": "The actual response text"
-            //       }
-            //     }
-            //   ]
-            // }
             val choices = jsonResponse.optJSONArray("choices")
             if (choices != null && choices.length() > 0) {
                 val firstChoice = choices.getJSONObject(0)
-                val message = firstChoice.optJSONObject("message")
-                if (message != null) {
-                    val content = message.optString("content")
-                    if (content.isNotEmpty()) {
-                        return content
-                    }
+                val text = firstChoice.optString("text")
+                if (text.isNotEmpty()) {
+                    return text
                 }
             }
 
-            // If we couldn't extract text, log the response and throw
-            log.error("Failed to extract content from response. Full response: {}", responseBody.take(500))
-            throw Exception("No response content from OpenAI API. Response structure unexpected.")
-        } catch (e: com.tom.rv2ide.artificial.exceptions.RateLimitException) {
-            log.error("Rate limit exception", e)
-            throw e
-        } catch (e: com.tom.rv2ide.artificial.exceptions.QuotaExceededException) {
-            log.error("Quota exceeded exception", e)
-            throw e
-        } catch (e: com.tom.rv2ide.artificial.exceptions.InvalidApiKeyException) {
-            log.error("Invalid API key exception", e)
-            throw e
+            log.error("Failed to extract content from completions response. Full response: {}", responseBody.take(500))
+            throw Exception("No response content from OpenAI Completions API. Response structure unexpected.")
         } catch (e: java.net.SocketTimeoutException) {
             log.error("Timeout exception", e)
             throw Exception("OpenAI request timeout: ${e.message}")
@@ -411,7 +517,7 @@ class OpenAI : AIAgent {
             log.error("Network exception", e)
             throw Exception("Network error - cannot reach OpenAI: ${e.message}")
         } catch (e: Exception) {
-            log.error("General exception", e)
+            log.error("Completions attempt exception", e)
             throw e
         } finally {
             connection.disconnect()
