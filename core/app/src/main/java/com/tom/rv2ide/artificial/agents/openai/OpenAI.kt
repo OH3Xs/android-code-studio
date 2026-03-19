@@ -301,4 +301,9 @@ class OpenAI : AIAgent {
     }
 
     override fun isInitialized(): Boolean = apiKey != null
+
+data class ConversationMessage(
+    val role: String,
+    val content: String
+)
 }
