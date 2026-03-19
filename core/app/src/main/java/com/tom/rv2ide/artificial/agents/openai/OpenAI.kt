@@ -96,6 +96,7 @@ class OpenAI : AIAgent {
             }
 
             this.selectedModel = selectedModel
+            log.debug("Initialized with model: {}", this.selectedModel)
         } catch (e: Exception) {
             throw e
         }
@@ -193,6 +194,9 @@ class OpenAI : AIAgent {
                         IllegalStateException("OpenAI service not initialized")
                     )
 
+                // Ensure model is valid before proceeding
+                validateModel()
+
                 val fileContents = readRelevantFiles()
                 val needsCorrection = isUserRequestingCorrection(prompt)
 
@@ -272,11 +276,28 @@ class OpenAI : AIAgent {
         }
 
     /**
+     * Ensures that the currently selected model is valid for OpenAI.
+     * If not, falls back to a default model and updates the stored selection.
+     */
+    private fun validateModel() {
+        if (agents == null) {
+            log.warn("Agents not initialized, cannot validate model")
+            return
+        }
+        if (!agents!!.isValidModelForProvider(selectedModel, "openai")) {
+            log.warn("Model '{}' is not valid for OpenAI. Falling back to 'gpt-4o'", selectedModel)
+            selectedModel = "gpt-4o"
+            agents?.setAgent(selectedModel)
+            agents?.setProvider("openai")
+        }
+    }
+
+    /**
      * Calls OpenAI's Responses API (v1/responses) which supports the latest models
      * such as GPT‑5 and Codex.
      */
     private fun callOpenAIAPI(apiKey: String, prompt: String): String {
-        log.debug("Starting API call to OpenAI (Responses API)")
+        log.debug("Starting API call to OpenAI (Responses API) with model: {}", selectedModel)
 
         val url = URL("https://api.openai.com/v1/responses")
         val connection = url.openConnection() as HttpURLConnection
