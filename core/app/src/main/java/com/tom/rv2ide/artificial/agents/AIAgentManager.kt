@@ -40,7 +40,7 @@ class AIAgentManager(private val context: Context) {
     private val snippetParser = SnippetParser()
     private val permissionManager = AIPermissionManager(context)
     private var currentProjectRoot: File? = null
-    private var currentProviderId: String = "gemini"
+    private var currentProviderId: String = "openai"
     private var currentAgent: AIAgent? = null
     private val providerSwitchDialog = ProviderSwitchDialog(context)
 
