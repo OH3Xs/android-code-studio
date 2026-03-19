@@ -13,7 +13,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *   along with AndroidCodeStudio.  If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 package com.tom.rv2ide.artificial.agents
 
@@ -32,9 +32,11 @@ import com.tom.rv2ide.artificial.secrets.ApiKey
 import java.io.File
 import kotlinx.coroutines.delay
 import com.tom.rv2ide.artificial.dialogs.ProviderSwitchDialog
+import org.slf4j.LoggerFactory
 
 class AIAgentManager(private val context: Context) {
 
+    private val log = LoggerFactory.getLogger(AIAgentManager::class.java)
     private val snippetParser = SnippetParser()
     private val permissionManager = AIPermissionManager(context)
     private var currentProjectRoot: File? = null
@@ -59,25 +61,25 @@ class AIAgentManager(private val context: Context) {
     fun getCurrentAgent(): AIAgent? = currentAgent
 
     fun setProvider(providerId: String): Boolean {
-        android.util.Log.d("AIAgentManager", "setProvider called with: $providerId")
+        log.debug("setProvider called with: {}", providerId)
         
         val factory = AIAgentRegistry.getFactory(providerId)
         if (factory == null) {
-            android.util.Log.e("AIAgentManager", "No factory found for provider: $providerId")
+            log.error("No factory found for provider: {}", providerId)
             return false
         }
         
         if (!factory.hasValidApiKey()) {
-            android.util.Log.e("AIAgentManager", "No valid API key for provider: $providerId")
+            log.error("No valid API key for provider: {}", providerId)
             return false
         }
         
         currentProviderId = providerId
         currentAgent = factory.create(context)
-        android.util.Log.d("AIAgentManager", "Agent created: ${currentAgent != null}")
+        log.debug("Agent created: {}", currentAgent != null)
         
         factory.getApiKey()?.let { apiKey ->
-            android.util.Log.d("AIAgentManager", "Initializing agent with API key")
+            log.debug("Initializing agent with API key")
             currentAgent?.initialize(apiKey, context)
             currentAgent?.setContext(context)
             
@@ -87,7 +89,7 @@ class AIAgentManager(private val context: Context) {
                 currentAgent?.setProjectData(projectTree)
             }
             
-            android.util.Log.d("AIAgentManager", "Agent initialized: ${currentAgent?.isInitialized()}")
+            log.debug("Agent initialized: {}", currentAgent?.isInitialized())
         }
         
         return currentAgent?.isInitialized() ?: false
@@ -197,62 +199,62 @@ class AIAgentManager(private val context: Context) {
                             success = true
                         }
                     },
-                  onFailure = { error ->
-                      android.util.Log.e("AIAgentManager", "Error occurred: ${error.message}", error)
-                      
-                      val shouldSwitchProvider = error is com.tom.rv2ide.artificial.exceptions.RateLimitException ||
-                                                error is com.tom.rv2ide.artificial.exceptions.QuotaExceededException ||
-                                                error is com.tom.rv2ide.artificial.exceptions.InsufficientBalanceException ||
-                                                error is com.tom.rv2ide.artificial.exceptions.InvalidApiKeyException
-                      
-                      if (shouldSwitchProvider && !providerSwitched) {
-                          val currentProviderName = currentAgent?.providerName ?: "Unknown"
-                          val errorMsg = error.message ?: "Unknown error"
-                          
-                          if (providerSwitchDialog.isAutoSwitchEnabled()) {
-                              val alternativeProvider = getAlternativeProvider()
-                              if (alternativeProvider != null) {
-                                  callback.onProcessing("⚠️ $currentProviderName: $errorMsg")
-                                  callback.onProcessing("🔄 Auto-switching to another provider...")
-                                  delay(1500)
-                                  
-                                  if (setProvider(alternativeProvider)) {
-                                      providerSwitched = true
-                                      currentAgent?.resetAttemptCount()
-                                      
-                                      val newProviderName = currentAgent?.providerName ?: "Unknown"
-                                      callback.onProcessing("✅ Switched to $newProviderName")
-                                  } else {
-                                      val errorDisplay = formatErrorMessage(error)
-                                      callback.onError("$errorDisplay\n\n❌ Failed to switch providers.")
-                                      success = true
-                                  }
-                              } else {
-                                  val errorDisplay = formatErrorMessage(error)
-                                  callback.onError("$errorDisplay\n\n❌ No alternative providers available.")
-                                  success = true
-                              }
-                          } else {
-                              val errorDisplay = formatErrorMessage(error)
-                              callback.onError("PROVIDER_SWITCH_REQUIRED::$errorDisplay")
-                              success = true
-                          }
-                      } else if ((currentAgent?.canRetry() == true) && !providerSwitched) {
-                          callback.onRetry(
-                              currentAgent?.getCurrentAttemptCount() ?: 0,
-                              "Error: ${error.message?.take(50) ?: "Unknown error"}. Retrying..."
-                          )
-                          currentAgent?.incrementAttemptCount()
-                          delay(1500)
-                      } else {
-                          val errorDisplay = formatErrorMessage(error)
-                          callback.onError(errorDisplay)
-                          success = true
-                      }
-                  }
+                    onFailure = { error ->
+                        log.error("Error occurred: {}", error.message, error)
+                        
+                        val shouldSwitchProvider = error is com.tom.rv2ide.artificial.exceptions.RateLimitException ||
+                                                  error is com.tom.rv2ide.artificial.exceptions.QuotaExceededException ||
+                                                  error is com.tom.rv2ide.artificial.exceptions.InsufficientBalanceException ||
+                                                  error is com.tom.rv2ide.artificial.exceptions.InvalidApiKeyException
+                        
+                        if (shouldSwitchProvider && !providerSwitched) {
+                            val currentProviderName = currentAgent?.providerName ?: "Unknown"
+                            val errorMsg = error.message ?: "Unknown error"
+                            
+                            if (providerSwitchDialog.isAutoSwitchEnabled()) {
+                                val alternativeProvider = getAlternativeProvider()
+                                if (alternativeProvider != null) {
+                                    callback.onProcessing("⚠️ $currentProviderName: $errorMsg")
+                                    callback.onProcessing("🔄 Auto-switching to another provider...")
+                                    delay(1500)
+                                    
+                                    if (setProvider(alternativeProvider)) {
+                                        providerSwitched = true
+                                        currentAgent?.resetAttemptCount()
+                                        
+                                        val newProviderName = currentAgent?.providerName ?: "Unknown"
+                                        callback.onProcessing("✅ Switched to $newProviderName")
+                                    } else {
+                                        val errorDisplay = formatErrorMessage(error)
+                                        callback.onError("$errorDisplay\n\n❌ Failed to switch providers.")
+                                        success = true
+                                    }
+                                } else {
+                                    val errorDisplay = formatErrorMessage(error)
+                                    callback.onError("$errorDisplay\n\n❌ No alternative providers available.")
+                                    success = true
+                                }
+                            } else {
+                                val errorDisplay = formatErrorMessage(error)
+                                callback.onError("PROVIDER_SWITCH_REQUIRED::$errorDisplay")
+                                success = true
+                            }
+                        } else if ((currentAgent?.canRetry() == true) && !providerSwitched) {
+                            callback.onRetry(
+                                currentAgent?.getCurrentAttemptCount() ?: 0,
+                                "Error: ${error.message?.take(50) ?: "Unknown error"}. Retrying..."
+                            )
+                            currentAgent?.incrementAttemptCount()
+                            delay(1500)
+                        } else {
+                            val errorDisplay = formatErrorMessage(error)
+                            callback.onError(errorDisplay)
+                            success = true
+                        }
+                    }
                 )
             } catch (e: Exception) {
-                android.util.Log.e("AIAgentManager", "Exception occurred: ${e.message}", e)
+                log.error("Exception occurred: {}", e.message, e)
                 
                 if (currentAgent?.canRetry() == true) {
                     callback.onRetry(
@@ -270,10 +272,10 @@ class AIAgentManager(private val context: Context) {
         }
 
         if (!success) {
-          val attemptCount = currentAgent?.getCurrentAttemptCount() ?: 0
-          val agentName = currentAgent?.providerName ?: "No agent initialized"
-          callback.onError("Failed after $attemptCount attempts with $agentName.\n\nPlease check your API key and try again.")
-          undoLastModification()
+            val attemptCount = currentAgent?.getCurrentAttemptCount() ?: 0
+            val agentName = currentAgent?.providerName ?: "No agent initialized"
+            callback.onError("Failed after $attemptCount attempts with $agentName.\n\nPlease check your API key and try again.")
+            undoLastModification()
         }
     }
 
