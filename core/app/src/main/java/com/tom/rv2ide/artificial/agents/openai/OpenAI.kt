@@ -67,13 +67,6 @@ class OpenAI : AIAgent {
 
                 override fun hasValidApiKey(): Boolean {
                     val key = ApiKey.getOpenAIApiKey()
-                    // Use logger via instance? No, companion object cannot access instance logger.
-                    // We'll use a local logger or just rely on the agent's logger in methods.
-                    // For simplicity, we can keep android.util.Log here, but better to create a logger in companion.
-                    // However, to avoid adding another dependency, we can use the agent's logger indirectly.
-                    // But companion is static, so we'd need a logger instance. Let's just keep it simple and use the agent's log after creation.
-                    // Actually, we can create a logger in companion using LoggerFactory.getLogger(OpenAI::class.java) as well.
-                    // But that would create multiple loggers. We'll create one in companion too.
                     val log = LoggerFactory.getLogger(OpenAI::class.java)
                     log.debug("hasValidApiKey check: {}, key length: {}", key != null && key.isNotEmpty(), key?.length ?: 0)
                     return key != null && key.isNotEmpty()
@@ -311,7 +304,7 @@ class OpenAI : AIAgent {
             val requestBody = JSONObject()
             requestBody.put("model", selectedModel)
             requestBody.put("input", messages)
-            requestBody.put("temperature", 0.7)
+            // Temperature removed – some models (e.g., gpt-5-nano) do not support it
             requestBody.put("max_output_tokens", 4096)
 
             log.debug("Request body: {}", requestBody.toString())
