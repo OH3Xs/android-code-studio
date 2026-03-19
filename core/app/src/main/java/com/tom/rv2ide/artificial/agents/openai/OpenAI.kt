@@ -31,7 +31,7 @@ class OpenAI : AIAgent {
     private val conversationHistory = mutableListOf<ConversationMessage>()
     private val modificationHistory = mutableListOf<ModificationAttempt>()
     private var currentAttemptCount = 0
-    private val maxRetryAttempts = 3
+    private val maxRetryAttempts = 1
     private var agents: Agents? = null
     private var selectedModel: String = "gpt-4o"
     override val providerId = "openai"
@@ -260,9 +260,7 @@ class OpenAI : AIAgent {
         log.debug("Starting API call with model: {}", selectedModel)
 
         if (selectedModel.startsWith("gpt-5") ||
-            selectedModel.contains("codex") ||
-            selectedModel.contains("o1") ||
-            selectedModel.contains("o3")) {
+            selectedModel.contains("codex")) {
 
             return attemptResponses(apiKey, prompt)
         }
@@ -271,12 +269,11 @@ class OpenAI : AIAgent {
     }
 
     private fun attemptResponses(apiKey: String, prompt: String): String {
-
         log.debug("Using Responses API")
-
+    
         val url = URL("https://api.openai.com/v1/responses")
         val connection = url.openConnection() as HttpURLConnection
-
+    
         try {
             connection.requestMethod = "POST"
             connection.setRequestProperty("Content-Type", "application/json")
@@ -284,58 +281,105 @@ class OpenAI : AIAgent {
             connection.doOutput = true
             connection.connectTimeout = 30000
             connection.readTimeout = 30000
-
+    
             val inputArray = JSONArray()
-
+    
             val message = JSONObject()
             message.put("role", "user")
-
+    
             val contentArray = JSONArray()
             val textObj = JSONObject()
             textObj.put("type", "input_text")
             textObj.put("text", writingRules.useThis() + "\n\n" + prompt)
-
+    
             contentArray.put(textObj)
             message.put("content", contentArray)
-
+    
             inputArray.put(message)
-
+    
             val requestBody = JSONObject()
             requestBody.put("model", selectedModel)
             requestBody.put("input", inputArray)
             requestBody.put("max_output_tokens", 4096)
-
+    
             log.debug("Responses request body: {}", requestBody.toString())
-
+    
             connection.outputStream.use {
                 it.write(requestBody.toString().toByteArray())
             }
-
+    
             val responseCode = connection.responseCode
-
-            if (responseCode != HttpURLConnection.HTTP_OK) {
-                val error = connection.errorStream?.bufferedReader()?.readText()
-                    ?: "Unknown error"
-                throw Exception("OpenAI Responses API error ($responseCode): $error")
+            val responseBody = if (responseCode == HttpURLConnection.HTTP_OK) {
+                connection.inputStream.bufferedReader().readText()
+            } else {
+                connection.errorStream?.bufferedReader()?.readText() ?: "Unknown error"
             }
-
-            val responseBody = connection.inputStream.bufferedReader().readText()
+    
+            log.debug("Responses response code: {}, body: {}", responseCode, responseBody.take(500))
+    
             val json = JSONObject(responseBody)
-
-            val output = json.optJSONArray("output")
-
-            if (output != null && output.length() > 0) {
-                val first = output.getJSONObject(0)
-                val content = first.optJSONArray("content")
-
-                if (content != null && content.length() > 0) {
-                    val text = content.getJSONObject(0).optString("text")
-                    if (text.isNotEmpty()) return text
+    
+            if (json.has("error")) {
+                val errorObj = json.getJSONObject("error")
+                val errorCode = errorObj.optString("code")
+                val errorMessage = errorObj.optString("message", "Unknown error")
+                log.error("OpenAI Responses API error: {} - {}", errorCode, errorMessage)
+    
+                when {
+                    responseCode == 429 || errorCode.contains("rate_limit") ->
+                        throw RateLimitException("OpenAI rate limit exceeded: $errorMessage")
+                    errorCode.contains("insufficient_quota") || errorMessage.contains("quota") ->
+                        throw QuotaExceededException("OpenAI quota exceeded: $errorMessage")
+                    errorCode.contains("invalid_api_key") || responseCode == 401 ->
+                        throw InvalidApiKeyException("Invalid OpenAI API key: $errorMessage")
+                    else ->
+                        throw Exception("OpenAI Responses API error ($responseCode): $errorMessage")
                 }
             }
-
+    
+            if (json.has("incomplete_details")) {
+                val incomplete = json.getJSONObject("incomplete_details")
+                val reason = incomplete.optString("reason")
+                if (reason == "max_output_tokens") {
+                    log.warn("Response incomplete due to max_output_tokens limit")
+                }
+            }
+    
+            val output = json.optJSONArray("output")
+            if (output != null && output.length() > 0) {
+                val textBuilder = StringBuilder()
+                for (i in 0 until output.length()) {
+                    val outputItem = output.getJSONObject(i)
+                    val type = outputItem.optString("type")
+                    if (type == "message") {
+                        val content = outputItem.optJSONArray("content")
+                        if (content != null) {
+                            for (j in 0 until content.length()) {
+                                val contentItem = content.getJSONObject(j)
+                                if (contentItem.optString("type") == "output_text") {
+                                    val text = contentItem.optString("text")
+                                    if (text.isNotEmpty()) {
+                                        textBuilder.append(text)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if (textBuilder.isNotEmpty()) {
+                    return textBuilder.toString()
+                }
+            }
+    
+            val outputText = json.optString("output_text")
+            if (outputText.isNotEmpty()) {
+                return outputText
+            }
+   
             throw Exception("No text content returned from Responses API")
-
+        } catch (e: Exception) {
+            log.error("Responses API call failed", e)
+            throw e
         } finally {
             connection.disconnect()
         }
