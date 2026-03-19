@@ -59,6 +59,12 @@ class OpenAI : AIAgent {
     override val providerName = "OpenAI"
 
     companion object {
+        // Hardcoded list of valid OpenAI model names (as of early 2025)
+        private val VALID_MODELS = setOf(
+            "gpt-4o", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo",
+            "o1-preview", "o1-mini", "gpt-4o-mini", "gpt-4.5-preview"
+        )
+
         fun registerAgent() {
             AIAgentRegistry.register("openai", object : AIAgentRegistry.AgentFactory {
                 override fun create(context: Context): AIAgent {
@@ -89,7 +95,8 @@ class OpenAI : AIAgent {
             var selectedModel = agents?.getAgent() ?: "gpt-4o"
 
             // Ensure we're using a valid OpenAI model
-            if (!agents!!.isValidModelForProvider(selectedModel, "openai")) {
+            if (!isValidModel(selectedModel)) {
+                log.warn("Model '{}' is not in the valid OpenAI model list. Falling back to 'gpt-4o'", selectedModel)
                 selectedModel = "gpt-4o"
                 agents?.setAgent(selectedModel)
                 agents?.setProvider("openai")
@@ -179,6 +186,10 @@ class OpenAI : AIAgent {
             "different", "try again", "not working"
         )
         return correctionKeywords.any { message.lowercase().contains(it) }
+    }
+
+    private fun isValidModel(model: String): Boolean {
+        return model in VALID_MODELS
     }
 
     override suspend fun generateCode(
@@ -280,11 +291,7 @@ class OpenAI : AIAgent {
      * If not, falls back to a default model and updates the stored selection.
      */
     private fun validateModel() {
-        if (agents == null) {
-            log.warn("Agents not initialized, cannot validate model")
-            return
-        }
-        if (!agents!!.isValidModelForProvider(selectedModel, "openai")) {
+        if (!isValidModel(selectedModel)) {
             log.warn("Model '{}' is not valid for OpenAI. Falling back to 'gpt-4o'", selectedModel)
             selectedModel = "gpt-4o"
             agents?.setAgent(selectedModel)
@@ -293,8 +300,7 @@ class OpenAI : AIAgent {
     }
 
     /**
-     * Calls OpenAI's Responses API (v1/responses) which supports the latest models
-     * such as GPT‑5 and Codex.
+     * Calls OpenAI's Responses API (v1/responses) which supports the latest models.
      */
     private fun callOpenAIAPI(apiKey: String, prompt: String): String {
         log.debug("Starting API call to OpenAI (Responses API) with model: {}", selectedModel)
@@ -380,6 +386,7 @@ class OpenAI : AIAgent {
 
             val jsonResponse = JSONObject(responseBody)
 
+            // Try to extract text from the response
             val output = jsonResponse.optJSONArray("output")
             if (output != null && output.length() > 0) {
                 val firstOutput = output.getJSONObject(0)
@@ -393,11 +400,15 @@ class OpenAI : AIAgent {
                             textBuilder.append(text)
                         }
                     }
-                    return textBuilder.toString()
+                    if (textBuilder.isNotEmpty()) {
+                        return textBuilder.toString()
+                    }
                 }
             }
 
-            throw Exception("No response content from OpenAI API")
+            // If we couldn't extract text, log the response and throw
+            log.error("Failed to extract content from response. Full response: {}", responseBody.take(500))
+            throw Exception("No response content from OpenAI API. Response structure unexpected.")
         } catch (e: com.tom.rv2ide.artificial.exceptions.RateLimitException) {
             log.error("Rate limit exception", e)
             throw e
