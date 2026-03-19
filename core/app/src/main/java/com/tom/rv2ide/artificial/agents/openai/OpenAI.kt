@@ -319,8 +319,9 @@ class OpenAI : AIAgent {
     
             val json = JSONObject(responseBody)
     
-            if (json.has("error")) {
-                val errorObj = json.getJSONObject("error")
+            // Check for error object (may be null)
+            val errorObj = json.optJSONObject("error")
+            if (errorObj != null) {
                 val errorCode = errorObj.optString("code")
                 val errorMessage = errorObj.optString("message", "Unknown error")
                 log.error("OpenAI Responses API error: {} - {}", errorCode, errorMessage)
@@ -337,14 +338,16 @@ class OpenAI : AIAgent {
                 }
             }
     
-            if (json.has("incomplete_details")) {
-                val incomplete = json.getJSONObject("incomplete_details")
+            // Check for incomplete details (may be null)
+            val incomplete = json.optJSONObject("incomplete_details")
+            if (incomplete != null) {
                 val reason = incomplete.optString("reason")
                 if (reason == "max_output_tokens") {
                     log.warn("Response incomplete due to max_output_tokens limit")
                 }
             }
     
+            // Extract text from output array
             val output = json.optJSONArray("output")
             if (output != null && output.length() > 0) {
                 val textBuilder = StringBuilder()
@@ -371,11 +374,12 @@ class OpenAI : AIAgent {
                 }
             }
     
+            // Fallback: try top-level output_text field
             val outputText = json.optString("output_text")
             if (outputText.isNotEmpty()) {
                 return outputText
             }
-   
+    
             throw Exception("No text content returned from Responses API")
         } catch (e: Exception) {
             log.error("Responses API call failed", e)
