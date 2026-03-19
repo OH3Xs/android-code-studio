@@ -36,6 +36,7 @@ import com.tom.rv2ide.artificial.agents.AIAgent
 import com.tom.rv2ide.artificial.agents.AIAgentRegistry
 import com.tom.rv2ide.artificial.secrets.ApiKey
 import com.tom.rv2ide.artificial.agents.ModificationAttempt
+import org.slf4j.LoggerFactory
 
 /*
  * @author Mohammed-baqer-null @ https://github.com/Mohammed-baqer-null
@@ -43,6 +44,7 @@ import com.tom.rv2ide.artificial.agents.ModificationAttempt
 
 class OpenAI : AIAgent {
 
+    private val log = LoggerFactory.getLogger(OpenAI::class.java)
     private var apiKey: String? = null
     private val writingRules = WritingRules.Instructions()
     private var projectTreeResult: ProjectTreeResult? = null
@@ -65,13 +67,22 @@ class OpenAI : AIAgent {
 
                 override fun hasValidApiKey(): Boolean {
                     val key = ApiKey.getOpenAIApiKey()
-                    android.util.Log.d("OpenAI", "hasValidApiKey check: ${key != null && key.isNotEmpty()}, key length: ${key?.length ?: 0}")
+                    // Use logger via instance? No, companion object cannot access instance logger.
+                    // We'll use a local logger or just rely on the agent's logger in methods.
+                    // For simplicity, we can keep android.util.Log here, but better to create a logger in companion.
+                    // However, to avoid adding another dependency, we can use the agent's logger indirectly.
+                    // But companion is static, so we'd need a logger instance. Let's just keep it simple and use the agent's log after creation.
+                    // Actually, we can create a logger in companion using LoggerFactory.getLogger(OpenAI::class.java) as well.
+                    // But that would create multiple loggers. We'll create one in companion too.
+                    val log = LoggerFactory.getLogger(OpenAI::class.java)
+                    log.debug("hasValidApiKey check: {}, key length: {}", key != null && key.isNotEmpty(), key?.length ?: 0)
                     return key != null && key.isNotEmpty()
                 }
 
                 override fun getApiKey(): String? {
                     val key = ApiKey.getOpenAIApiKey()
-                    android.util.Log.d("OpenAI", "getApiKey called, returning key of length: ${key?.length ?: 0}")
+                    val log = LoggerFactory.getLogger(OpenAI::class.java)
+                    log.debug("getApiKey called, returning key of length: {}", key?.length ?: 0)
                     return key
                 }
             })
@@ -272,9 +283,8 @@ class OpenAI : AIAgent {
      * such as GPT‑5 and Codex.
      */
     private fun callOpenAIAPI(apiKey: String, prompt: String): String {
-        android.util.Log.d("OpenAI", "Starting API call to OpenAI (Responses API)")
+        log.debug("Starting API call to OpenAI (Responses API)")
 
-        // 👇 NEW ENDPOINT for Responses API
         val url = URL("https://api.openai.com/v1/responses")
         val connection = url.openConnection() as HttpURLConnection
 
@@ -300,22 +310,22 @@ class OpenAI : AIAgent {
 
             val requestBody = JSONObject()
             requestBody.put("model", selectedModel)
-            requestBody.put("input", messages)                // 👈 WAS "messages"
+            requestBody.put("input", messages)
             requestBody.put("temperature", 0.7)
-            requestBody.put("max_output_tokens", 4096)        // 👈 RENAMED
+            requestBody.put("max_output_tokens", 4096)
 
-            android.util.Log.d("OpenAI", "Request body: ${requestBody.toString()}")
+            log.debug("Request body: {}", requestBody.toString())
 
             connection.outputStream.use { os ->
                 os.write(requestBody.toString().toByteArray())
             }
 
             val responseCode = connection.responseCode
-            android.util.Log.d("OpenAI", "Response code: $responseCode")
+            log.debug("Response code: {}", responseCode)
 
             if (responseCode != HttpURLConnection.HTTP_OK) {
                 val errorStream = connection.errorStream?.bufferedReader()?.readText() ?: "Unknown error"
-                android.util.Log.e("OpenAI", "Error response: $errorStream")
+                log.error("Error response: {}", errorStream)
 
                 // Parse error response
                 try {
@@ -325,7 +335,7 @@ class OpenAI : AIAgent {
                     val errorType = errorObj?.optString("type") ?: ""
                     val errorCode = errorObj?.optString("code") ?: ""
 
-                    android.util.Log.e("OpenAI", "Error type: $errorType, code: $errorCode, message: $errorMessage")
+                    log.error("Error type: {}, code: {}, message: {}", errorType, errorCode, errorMessage)
 
                     // Identify specific error types
                     when {
@@ -352,17 +362,15 @@ class OpenAI : AIAgent {
             }
 
             val responseBody = connection.inputStream.bufferedReader().readText()
-            android.util.Log.d("OpenAI", "Success response received, length: ${responseBody.length}")
+            log.debug("Success response received, length: {}", responseBody.length)
 
             val jsonResponse = JSONObject(responseBody)
 
-            // 👇 NEW RESPONSE PARSING for Responses API
             val output = jsonResponse.optJSONArray("output")
             if (output != null && output.length() > 0) {
                 val firstOutput = output.getJSONObject(0)
                 val contentArray = firstOutput.optJSONArray("content")
                 if (contentArray != null && contentArray.length() > 0) {
-                    // Concatenate all text parts (usually only one)
                     val textBuilder = StringBuilder()
                     for (i in 0 until contentArray.length()) {
                         val contentItem = contentArray.getJSONObject(i)
@@ -377,22 +385,22 @@ class OpenAI : AIAgent {
 
             throw Exception("No response content from OpenAI API")
         } catch (e: com.tom.rv2ide.artificial.exceptions.RateLimitException) {
-            android.util.Log.e("OpenAI", "Rate limit exception", e)
+            log.error("Rate limit exception", e)
             throw e
         } catch (e: com.tom.rv2ide.artificial.exceptions.QuotaExceededException) {
-            android.util.Log.e("OpenAI", "Quota exceeded exception", e)
+            log.error("Quota exceeded exception", e)
             throw e
         } catch (e: com.tom.rv2ide.artificial.exceptions.InvalidApiKeyException) {
-            android.util.Log.e("OpenAI", "Invalid API key exception", e)
+            log.error("Invalid API key exception", e)
             throw e
         } catch (e: java.net.SocketTimeoutException) {
-            android.util.Log.e("OpenAI", "Timeout exception", e)
+            log.error("Timeout exception", e)
             throw Exception("OpenAI request timeout: ${e.message}")
         } catch (e: java.net.UnknownHostException) {
-            android.util.Log.e("OpenAI", "Network exception", e)
+            log.error("Network exception", e)
             throw Exception("Network error - cannot reach OpenAI: ${e.message}")
         } catch (e: Exception) {
-            android.util.Log.e("OpenAI", "General exception", e)
+            log.error("General exception", e)
             throw e
         } finally {
             connection.disconnect()
