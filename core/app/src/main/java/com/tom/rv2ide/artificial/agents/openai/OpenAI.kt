@@ -281,12 +281,13 @@ class OpenAI : AIAgent {
         }
 
     /**
-     * Calls OpenAI's Responses API (v1/responses) which supports the latest models.
+     * Calls OpenAI's Chat Completions API (v1/chat/completions) which supports all text models,
+     * including custom models like gpt-5.1-codex-max.
      */
     private fun callOpenAIAPI(apiKey: String, prompt: String): String {
-        log.debug("Starting API call to OpenAI (Responses API) with model: {}", selectedModel)
+        log.debug("Starting API call to OpenAI (Chat Completions API) with model: {}", selectedModel)
 
-        val url = URL("https://api.openai.com/v1/responses")
+        val url = URL("https://api.openai.com/v1/chat/completions")
         val connection = url.openConnection() as HttpURLConnection
 
         try {
@@ -311,9 +312,10 @@ class OpenAI : AIAgent {
 
             val requestBody = JSONObject()
             requestBody.put("model", selectedModel)
-            requestBody.put("input", messages)
-            // Temperature removed – some models (e.g., gpt-5-nano) do not support it
-            requestBody.put("max_output_tokens", 4096)
+            requestBody.put("messages", messages)
+            requestBody.put("max_tokens", 4096) // Note: max_tokens, not max_output_tokens
+            // Optional: add temperature if needed, but some models may not support it
+            // requestBody.put("temperature", 0.7)
 
             log.debug("Request body: {}", requestBody.toString())
 
@@ -367,22 +369,25 @@ class OpenAI : AIAgent {
 
             val jsonResponse = JSONObject(responseBody)
 
-            // Try to extract text from the response
-            val output = jsonResponse.optJSONArray("output")
-            if (output != null && output.length() > 0) {
-                val firstOutput = output.getJSONObject(0)
-                val contentArray = firstOutput.optJSONArray("content")
-                if (contentArray != null && contentArray.length() > 0) {
-                    val textBuilder = StringBuilder()
-                    for (i in 0 until contentArray.length()) {
-                        val contentItem = contentArray.getJSONObject(i)
-                        val text = contentItem.optString("text")
-                        if (text.isNotEmpty()) {
-                            textBuilder.append(text)
-                        }
-                    }
-                    if (textBuilder.isNotEmpty()) {
-                        return textBuilder.toString()
+            // Standard Chat Completion response format:
+            // {
+            //   "choices": [
+            //     {
+            //       "message": {
+            //         "role": "assistant",
+            //         "content": "The actual response text"
+            //       }
+            //     }
+            //   ]
+            // }
+            val choices = jsonResponse.optJSONArray("choices")
+            if (choices != null && choices.length() > 0) {
+                val firstChoice = choices.getJSONObject(0)
+                val message = firstChoice.optJSONObject("message")
+                if (message != null) {
+                    val content = message.optString("content")
+                    if (content.isNotEmpty()) {
+                        return content
                     }
                 }
             }
