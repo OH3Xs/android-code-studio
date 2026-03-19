@@ -1,4 +1,4 @@
-name: Build Android Code Studio
+name: Build ACS
 
 on:
   push:
@@ -23,7 +23,7 @@ on:
 
 jobs:
   build_release_apk:
-    name: Build Debug APK
+    name: Build APK
     runs-on: ubuntu-latest
     steps:
       - name: Cancel previous runs
@@ -67,36 +67,18 @@ jobs:
           echo ""
           echo "=== SigningDirectory ==="
           ls -la core/app/signing/ || echo "core/app/signing directory not found"
-      - name: Assemble all APKs
+      - name: Assemble APK
              
         run: |
-             ./gradlew :core:app:assembleRelease
+             ./gradlew :core:app:assembleRelease --parallel --no-daemon
                  
        # ./gradlew clean assemble --rerun-tasks
        # run: 
-      - name: List APK files (Release)
+      - name: List APK file (Release)
         run: ls -la core/app/build/outputs/apk/release/
       - name: Upload arm64-v8a Release APK
         uses: actions/upload-artifact@v4
         with:
           name: apk-arm64-v8a-release
           path: core/app/build/outputs/apk/release/*arm64-v8a*.apk
-        if: always()
-      - name: Upload armeabi-v7a Release APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: apk-armeabi-v7a-release
-          path: core/app/build/outputs/apk/release/*armeabi-v7a*.apk
-        if: always()
-      - name: Upload x86_64 Release APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: apk-x86_64-release
-          path: core/app/build/outputs/apk/release/*x86_64*.apk
-        if: always()
-      - name: Upload universal Release APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: apk-universal-release
-          path: core/app/build/outputs/apk/release/*universal*.apk
         if: always()
